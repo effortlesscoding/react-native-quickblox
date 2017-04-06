@@ -5,7 +5,9 @@
 #import <React/RCTBridgeModule.h>
 #endif
 
-@interface RNQuickblox : NSObject <RCTBridgeModule>
+@import Quickblox;
+
+@interface RNQuickblox : NSObject <RCTBridgeModule, QBChatDelegate>
 
 @end
   
