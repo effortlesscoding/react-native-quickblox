@@ -1,0 +1,30 @@
+{
+  "name": "react-native-quickblox",
+  "version": "0.0.1",
+  "description": "A react native module for integrating Quickblox into your project.",
+  "main": "index.js",
+  "engines": {
+    "node": ">=4.2.4"
+  },
+  "scripts": {
+    "test": "mocha --reporter spec"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/githubandrewd/react-native-quickblox.git"
+  },
+  "keywords": [
+    "quickblox",
+    "react-native"
+  ],
+  "author": "Jeenius <frankensteinruo@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/githubandrewd/react-native-quickblox/issues"
+  },
+  "homepage": "https://github.com/githubandrewd/react-native-quickblox#readme",
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "mocha": "^3.2.0"
+  }
+}
