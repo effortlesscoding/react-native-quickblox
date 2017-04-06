@@ -1,12 +1,6 @@
-'use strict';
 
+import { NativeModules } from 'react-native';
 
-/**
- * Adds commas to a number
- * @param {number} number
- * @param {string} locale
- * @return {string}
- */
-module.exports = function(number, locale) {
-  return number.toLocaleString(locale);
-};
+const { RNQuickblox } = NativeModules;
+
+export default RNQuickblox;
