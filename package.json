@@ -1,6 +1,6 @@
 {
   "name": "react-native-quickblox",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "A react native module for integrating Quickblox into your project.",
   "main": "index.js",
   "engines": {
@@ -28,6 +28,6 @@
     "mocha": "^3.2.0"
   },
   "peerDependencies": {
-    "react-native": "^0.41.2"
+    "react-native": ">=0.40.0"
   }
 }
