@@ -3,12 +3,14 @@
 #import "QBError+ErrorsFormatting.h"
 #import "NSError+Initializers.h"
 #import "QBChatMessage+Formatting.h"
+@import UserNotifications;
+
+NSString *const QBChatMessageSent = @"QBChatMessageSent";
+NSString *const QBChatMessageReceived = @"QBChatMessageReceived";
 
 @implementation RNQuickblox {
     @private
     NSMutableDictionary<NSString *, QBChatDialog *> *dialogs;
-    RCTResponseSenderBlock onMessageReceived;
-    RCTResponseSenderBlock onMessageSent;
 }
 
 - (dispatch_queue_t)methodQueue
@@ -18,44 +20,50 @@
 RCT_EXPORT_MODULE()
 
 RCT_EXPORT_METHOD(
-                  initialize:(RCTResponseSenderBlock) onMessageReceivedParam
-                  onMessageSent: (RCTResponseSenderBlock) onMessageSentParam
-                  resolver:(RCTPromiseResolveBlock) resolve
+                  initialize:(RCTPromiseResolveBlock) resolve
                   rejecter:(RCTPromiseRejectBlock)reject
                   )
 {
-    onMessageSent = onMessageSentParam;
-    onMessageReceived = onMessageReceivedParam;
     [[QBChat instance] removeAllDelegates];
     [[QBChat instance] addDelegate: self];
+    resolve(@"");
 }
+
 RCT_EXPORT_METHOD(
-                  login: (NSInteger) userId
+                  login: (NSString *) login
                   password: (NSString*) password
                   resolver:(RCTPromiseResolveBlock) resolve
                   rejecter:(RCTPromiseRejectBlock)reject
                   )
 {
-    QBUUser *user = [QBUUser user];
-    user.ID = (NSUInteger)userId;
-    user.password = password;
-    [[QBChat instance] connectWithUser:user completion:^(NSError * _Nullable error) {
-        if (error) {
-            NSString *code = [NSString stringWithFormat:@"%ld", error.code];
-            reject(code, error.description, error);
+    [QBRequest logInWithUserLogin:login password:password successBlock:^(QBResponse * _Nonnull response, QBUUser * _Nullable user) {
+        resolve(@{
+                  @"id": [NSString stringWithFormat:@"%ld", user.ID],
+                  @"login": user.login ? user.login : @"",
+                  @"password": user.password ? user.password : @""
+                  });
+    } errorBlock:^(QBResponse * _Nonnull response) {
+        if (response.error) {
+            reject(
+                   [response.error errorCode],
+                   [response.error errorsSentence],
+                   response.error.error
+                   );
         } else {
-            resolve(@{
-                      @"id": [NSString stringWithFormat:@"%ld", user.ID],
-                      @"login": user.login ? user.login : @"",
-                      @"password": user.password ? user.password : @""
-                      });
+            NSInteger code = 99;
+            NSString *reason = @"Quickblox response does not have an error";
+            reject(
+                   [NSString stringWithFormat:@"%ld", code],
+                   reason,
+                   [NSError errorWithCode:code reason:reason]
+                   );
         }
     }];
 }
 
 
 RCT_EXPORT_METHOD(
-                  loadDialogs: (NSInteger) userId
+                  loadDialogs: (NSString *) userId
                   resolver:(RCTPromiseResolveBlock) resolve
                   rejecter:(RCTPromiseRejectBlock)reject
                   )
@@ -111,8 +119,10 @@ RCT_EXPORT_METHOD(
     }];
 }
 
-- (NSArray *) dictionaryMappingsFrom: (NSArray<QBChatDialog *> *) dialogObjects withUser: (NSInteger) userId
+- (NSArray *) dictionaryMappingsFrom: (NSArray<QBChatDialog *> *) dialogObjects withUser: (NSString *) userIdParam
 {
+    // TODO: Handle it more properly
+    NSInteger userId = [userIdParam integerValue];
     NSMutableDictionary<NSNumber *, NSString*>  *usersDialogIdsMappings = [[NSMutableDictionary alloc] init];
     NSMutableDictionary<NSString *, QBChatDialog *> *dialogIdMapping = [[NSMutableDictionary alloc] init];
     for (QBChatDialog *dialog in dialogObjects) {
@@ -144,7 +154,15 @@ RCT_EXPORT_METHOD(
  */
 - (void)chatDidDeliverMessageWithID:(NSString *)messageID dialogID:(NSString *)dialogID toUserID:(NSUInteger)userID
 {
-    onMessageReceived(@[messageID, dialogID, [NSNumber numberWithInteger:userID]]);
+    [[NSNotificationCenter defaultCenter]
+     postNotificationName:QBChatMessageReceived
+     object:self
+     userInfo: @{
+                 @"messageID": messageID,
+                 @"dialogID": dialogID,
+                 @"userID": [NSNumber numberWithInteger: userID]
+                 }
+     ];
 }
 
 /**
@@ -156,9 +174,11 @@ RCT_EXPORT_METHOD(
  */
 - (void)chatDidReceiveMessage:(QBChatMessage *)message
 {
-    // Call something on the other Javascript's side...
-    
-    onMessageSent(@[[message dictionaryValue]]);
+    [[NSNotificationCenter defaultCenter]
+        postNotificationName:QBChatMessageReceived
+        object:self
+        userInfo: [message dictionaryValue]
+     ];
 }
 @end
 
