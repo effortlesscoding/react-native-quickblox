@@ -17,11 +17,29 @@
 
 - (NSString *) errorsSentence
 {
-    NSArray<NSString *> *values = [self.reasons allValues];
-    NSMutableString *allReasons = [[NSMutableString alloc] init];
-    for (NSString * reason in values) {
-        [allReasons appendString: [reason capitalizedString]];
-        [allReasons appendString: @". "];
+    NSMutableString *allReasons = [[NSMutableString alloc] initWithString: @"Failed a quickblox request."];
+    for (NSString * key in self.reasons) {
+        id reason = self.reasons[key];
+        if ([reason isKindOfClass: [NSString class]]) {
+            [allReasons appendString: [reason capitalizedString]];
+            [allReasons appendString: @". "];
+        } else if ([reason isKindOfClass:[NSDictionary class]]) {
+            for (NSString * reasonKey in reason) {
+                id reasonInner = reason[reasonKey];
+                if ([reasonInner isKindOfClass: [NSString class]]) {
+                    [allReasons appendString: [reasonInner capitalizedString]];
+                    [allReasons appendString: @". "];
+                } else if ([reasonInner isKindOfClass:[NSArray class]]) {
+                    NSArray *reasonsInner = reasonInner;
+                    if ([reasonsInner count] > 0) {
+                        if ([reasonsInner[0] isKindOfClass:[NSString class]]) {
+                            [allReasons appendString: [reasonsInner[0] capitalizedString]];
+                            [allReasons appendString: @". "];
+                        }
+                    }
+                }
+            }
+        }
     }
     return allReasons;
 }

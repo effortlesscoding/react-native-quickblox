@@ -4,11 +4,13 @@
 #import "QBError+ErrorsFormatting.h"
 #import "NSError+Initializers.h"
 #import "QBChatMessage+Formatting.h"
+#import "NSString+Formatting.h"
 @import UserNotifications;
 
-NSString *const QBDialogsLoaded = @"QBDialogsLoaded";
 NSString *const QBChatMessageSent = @"QBChatMessageSent";
 NSString *const QBChatMessageReceived = @"QBChatMessageReceived";
+NSString *const QBChatConnectionError = @"QBChatConnectionError";
+NSString *const QBChatConnected = @"QBChatConnected";
 
 @implementation RNQuickblox {
     @private
@@ -34,34 +36,51 @@ RCT_EXPORT_METHOD(
 }
 
 RCT_EXPORT_METHOD(
-                  login: (NSString *) login
+                  login: (NSString *) userId
+                  username: (NSString*) username
                   password: (NSString*) password
                   resolver:(RCTPromiseResolveBlock) resolve
                   rejecter:(RCTPromiseRejectBlock)reject
                   )
 {
-    [QBRequest logInWithUserLogin:login password:password successBlock:^(QBResponse * _Nonnull response, QBUUser * _Nullable user) {
-        resolve(@{
-                  @"id": [NSString stringWithFormat:@"%ld", user.ID],
-                  @"login": user.login ? user.login : @"",
-                  @"password": user.password ? user.password : @""
-                  });
-    } errorBlock:^(QBResponse * _Nonnull response) {
-        if (response.error) {
+    QBUUser *user = [QBUUser user];
+    user.ID  = [userId integerValue];
+    user.login = username;
+    user.password = password;
+    // If I just use QBRequest login, then the delegates (didReceiveMessage, etc.) will not work
+    [[QBChat instance] connectWithUser:user completion:^(NSError * _Nullable error) {
+        if (error) {
             reject(
-                   [response.error errorCode],
-                   [response.error errorsSentence],
-                   response.error.error
-                   );
-        } else {
-            NSInteger code = 99;
-            NSString *reason = @"Quickblox response does not have an error";
-            reject(
-                   [NSString stringWithFormat:@"%ld", code],
-                   reason,
-                   [NSError errorWithCode:code reason:reason]
-                   );
+                   [NSString stringWithFormat: @"%ld", error.code],
+                   error.description,
+                   error
+            );
+            return;
         }
+        // OK, I don't understand something... Why do we need to login twice?
+        [QBRequest logInWithUserLogin:username password:password successBlock:^(QBResponse * _Nonnull response, QBUUser * _Nullable user) {
+            resolve(@{
+                      @"id": user.ID ? [NSString stringWithFormat: @"%ld", user.ID] : @"",
+                      @"login": user.login ? user.login : @"",
+                      @"password": user.password ? user.password : @""
+                      });
+        } errorBlock:^(QBResponse * _Nonnull response) {
+            if (response.error) {
+                reject(
+                       [response.error errorCode],
+                       [response.error errorsSentence],
+                       response.error.error
+                       );
+            } else {
+                NSInteger code = 99;
+                NSString *reason = @"Quickblox response does not have an error";
+                reject(
+                       [NSString stringWithFormat:@"%ld", code],
+                       reason,
+                       [NSError errorWithCode:code reason:reason]
+                       );
+            }
+        }];
     }];
 }
 
@@ -74,10 +93,8 @@ RCT_EXPORT_METHOD(
     [QBRequest dialogsWithSuccessBlock:^(QBResponse * _Nonnull response, NSArray<QBChatDialog *> * _Nullable dialogObjects, NSSet<NSNumber *> * _Nullable dialogsUsersIDs) {
         NSArray *mappings = [self dictionaryMappingsFrom: dialogObjects withUser:userId];
         dialogs = mappings[0];
-        NSDictionary *data = @{
-                               @"usersDialogs": mappings[1]
-                               };
-        resolve(data);
+        NSDictionary *opponentsDialogsMapping = mappings[1];
+        resolve(opponentsDialogsMapping);
     } errorBlock:^(QBResponse * _Nonnull response) {
         if (response.error) {
             reject(
@@ -98,18 +115,18 @@ RCT_EXPORT_METHOD(
 }
 
 RCT_EXPORT_METHOD(
-                  createPrivateDialog: (NSNumber *) myQuickbloxId
-                  opponent:(NSNumber *) opponentQuickbloxId
+                  createPrivateDialog:(NSString *) opponentQuickbloxId
                   resolver:(RCTPromiseResolveBlock) resolve
                   rejecter:(RCTPromiseRejectBlock)reject
                   )
 {
     QBChatDialog *chatDialog = [[QBChatDialog alloc] initWithDialogID:nil type:QBChatDialogTypePrivate];
     chatDialog.name = @"Private chat";
-    chatDialog.occupantIDs = @[myQuickbloxId, opponentQuickbloxId];
+    chatDialog.occupantIDs = @[[opponentQuickbloxId numberValue]];
     [QBRequest createDialog:chatDialog successBlock:^(QBResponse * _Nonnull response, QBChatDialog * _Nullable createdDialog) {
         NSDictionary *data = @{
-                               @"dialogId": createdDialog.ID
+                               @"dialogID": createdDialog.ID,
+                               @"opponentID": opponentQuickbloxId
                                };
         resolve(data);
     } errorBlock:^(QBResponse * _Nonnull response) {
@@ -132,8 +149,8 @@ RCT_EXPORT_METHOD(
 }
 
 RCT_EXPORT_METHOD(
-                  sendTextChat:(NSString*)text
-                  dialogId: (NSString*)dialogId
+                  sendTextMessage:(NSString*)dialogId
+                  text: (NSString*)text
                   resolver:(RCTPromiseResolveBlock) resolve
                   rejecter:(RCTPromiseRejectBlock)reject
                   )
@@ -142,11 +159,11 @@ RCT_EXPORT_METHOD(
     if (!dialog) {
         return;
     }
-    QBChatMessage *message = [QBChatMessage message];
+    QBChatMessage *message = [QBChatMessage markableMessage];
     NSMutableDictionary *customParams = [NSMutableDictionary new];
     customParams[@"save_to_history"] = @"1";
     message.customParameters = customParams;
-    [message setText:text];
+    [message setText:text ? text : @""];
     // TODO: Set a couple other parameters ...
     // TODO: Loop through all dialogs that you found ...
     [dialog sendMessage:message completionBlock:^(NSError * _Nullable error) {
@@ -154,22 +171,24 @@ RCT_EXPORT_METHOD(
             NSString *code = [NSString stringWithFormat:@"%ld", error.code];
             reject(code, error.description, error);
         } else {
-            resolve(@"Successfuly sent");
+            resolve([message dictionaryValue]);
         }
     }];
 }
 
 RCT_EXPORT_METHOD(
-                  sendVideoChat:(NSString*)videoUrl
+                  sendVideoChat: (NSString*)dialogId
+                  video: (NSString*)videoUrl
                   thumbnail:(NSString*)thumbnailUrl
                   text:(NSString*)additionalMessage
-                  dialogId: (NSString*)dialogId
                   resolver:(RCTPromiseResolveBlock) resolve
                   rejecter:(RCTPromiseRejectBlock)reject
                   )
 {
     QBChatDialog *dialog = [dialogs objectForKey:dialogId];
     if (!dialog) {
+        NSError *error = [NSError errorWithCode:99 reason:@"No dialog found"];
+        reject([NSString stringWithFormat:@"%ld",(long)error.code], error.description, error);
         return;
     }
     QBChatMessage *message = [QBChatMessage message];
@@ -187,16 +206,57 @@ RCT_EXPORT_METHOD(
             NSString *code = [NSString stringWithFormat:@"%ld", error.code];
             reject(code, error.description, error);
         } else {
-            resolve(@"Successfuly sent");
+            resolve([message dictionaryValue]);
         }
     }];
+}
+
+RCT_EXPORT_METHOD(
+                  loadChatMessages:(NSString*)dialogId
+                  resolver:(RCTPromiseResolveBlock) resolve
+                  rejecter:(RCTPromiseRejectBlock)reject
+                  )
+{
+    [QBRequest messagesWithDialogID:dialogId successBlock:^(QBResponse * _Nonnull response, NSArray<QBChatMessage *> * _Nullable messages) {
+        // Convert everything to an array of dictionary values.
+        NSArray *data = [self dictionaryMappingsFrom:messages];
+        resolve(data);
+    } errorBlock:^(QBResponse * _Nonnull response) {
+        if (response.error) {
+            reject(
+                   [response.error errorCode],
+                   [response.error errorsSentence],
+                   response.error.error
+                   );
+        } else {
+            NSInteger code = 99;
+            NSString *reason = @"Quickblox response does not have an error";
+            reject(
+                   [NSString stringWithFormat:@"%ld", code],
+                   reason,
+                   [NSError errorWithCode:code reason:reason]
+                   );
+        }
+    }];
+}
+
+#pragma mark Converters
+
+- (NSArray *) dictionaryMappingsFrom: (NSArray<QBChatMessage *> *) chatMessages
+{
+    NSMutableArray *convertedValues = [[NSMutableArray alloc] init];
+    for (QBChatMessage *chatMessage in chatMessages)
+    {
+        [convertedValues addObject:[chatMessage dictionaryValue]];
+    }
+    return convertedValues;
 }
 
 - (NSArray *) dictionaryMappingsFrom: (NSArray<QBChatDialog *> *) dialogObjects withUser: (NSString *) userIdParam
 {
     // TODO: Handle it more properly
     NSInteger userId = [userIdParam integerValue];
-    NSMutableDictionary<NSString *, NSString*>  *usersDialogIdsMappings = [[NSMutableDictionary alloc] init];
+    NSMutableDictionary<NSString *, NSString*>  *opponentsDialogIdsMappings = [[NSMutableDictionary alloc] init];
     NSMutableDictionary<NSString *, QBChatDialog *> *dialogIdMapping = [[NSMutableDictionary alloc] init];
     for (QBChatDialog *dialog in dialogObjects) {
         NSNumber *opponentId = [NSNumber numberWithInteger:-1];
@@ -207,12 +267,12 @@ RCT_EXPORT_METHOD(
         }
         if (opponentId.integerValue > -1) {
             [dialogIdMapping setObject: dialog forKey: dialog.ID];
-            [usersDialogIdsMappings setObject: dialog.ID forKey:[opponentId stringValue]];
+            [opponentsDialogIdsMappings setObject: dialog.ID forKey:[opponentId stringValue]];
         }
     }
     return @[
              dialogIdMapping,
-             usersDialogIdsMappings
+             opponentsDialogIdsMappings
              ];
 }
 
@@ -242,7 +302,7 @@ RCT_EXPORT_METHOD(
     NSDictionary *params = @{
                             @"messageID": messageID,
                             @"dialogID": dialogID,
-                            @"userID": [NSNumber numberWithInteger: userID]
+                            @"opponentID": [NSNumber numberWithInteger: userID]
                             };
     [_bridge.eventDispatcher sendDeviceEventWithName:QBChatMessageSent body:params];
 }
@@ -257,6 +317,68 @@ RCT_EXPORT_METHOD(
 - (void)chatDidReceiveMessage:(QBChatMessage *)message
 {
     [_bridge.eventDispatcher sendDeviceEventWithName:QBChatMessageReceived body:[message dictionaryValue]];
+}
+
+
+- (void)chatRoomDidReceiveMessage:(QBChatMessage *)message fromDialogID:(NSString *)dialogID
+{
+    [_bridge.eventDispatcher sendDeviceEventWithName:QBChatMessageReceived body: [message dictionaryValue]];
+}
+
+/**
+ *  Called whenever new system message was received from QBChat.
+ *
+ *  @param message Message that was received from Chat
+ *
+ *  @note Will be called only on recipient device
+ */
+- (void)chatDidReceiveSystemMessage:(QBChatMessage *)message
+{
+    NSLog(@"Wonderful");
+}
+
+/**
+ *  Called whenever QBChat connection error happened.
+ *
+ *  @param error XMPPStream Error
+ */
+- (void)chatDidFailWithStreamError:(nullable NSError *)error
+{
+    NSLog(@"Wonderful");
+}
+
+/**
+ *  Called whenever QBChat did connect.
+ */
+- (void)chatDidConnect
+{
+    [_bridge.eventDispatcher sendDeviceEventWithName:QBChatConnected body: @{}];
+}
+
+/**
+ *  Called whenever connection process did not finish successfully.
+ *
+ *  @param error connection error
+ */
+- (void)chatDidNotConnectWithError:(nullable NSError *)error
+{
+    [_bridge.eventDispatcher sendDeviceEventWithName:QBChatConnectionError body: @{}];
+}
+
+/**
+ *  Called whenever QBChat did accidentally disconnect.
+ */
+- (void)chatDidAccidentallyDisconnect
+{
+    NSLog(@"Wonderful");
+}
+
+/**
+ *  Called after successful connection to chat after disconnect.
+ */
+- (void)chatDidReconnect
+{
+    NSLog(@"Wonderful");
 }
 @end
 

@@ -11,6 +11,7 @@
 		201910541E96FD2F00FF7EDB /* QBError+ErrorsFormatting.m in Sources */ = {isa = PBXBuildFile; fileRef = 201910531E96FD2F00FF7EDB /* QBError+ErrorsFormatting.m */; };
 		2019105A1E9701AD00FF7EDB /* NSError+Initializers.m in Sources */ = {isa = PBXBuildFile; fileRef = 201910591E9701AD00FF7EDB /* NSError+Initializers.m */; };
 		2019105D1E97082C00FF7EDB /* QBChatMessage+Formatting.m in Sources */ = {isa = PBXBuildFile; fileRef = 2019105C1E97082C00FF7EDB /* QBChatMessage+Formatting.m */; };
+		20EC9DC81EA0A6D1007D1AE3 /* NSString+Formatting.m in Sources */ = {isa = PBXBuildFile; fileRef = 20EC9DC71EA0A6D1007D1AE3 /* NSString+Formatting.m */; };
 		B3E7B58A1CC2AC0600A0062D /* RNQuickblox.m in Sources */ = {isa = PBXBuildFile; fileRef = B3E7B5891CC2AC0600A0062D /* RNQuickblox.m */; };
 /* End PBXBuildFile section */
 
@@ -35,6 +36,8 @@
 		201910591E9701AD00FF7EDB /* NSError+Initializers.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSError+Initializers.m"; sourceTree = "<group>"; };
 		2019105B1E97082C00FF7EDB /* QBChatMessage+Formatting.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "QBChatMessage+Formatting.h"; sourceTree = "<group>"; };
 		2019105C1E97082C00FF7EDB /* QBChatMessage+Formatting.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "QBChatMessage+Formatting.m"; sourceTree = "<group>"; };
+		20EC9DC61EA0A6D1007D1AE3 /* NSString+Formatting.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSString+Formatting.h"; sourceTree = "<group>"; };
+		20EC9DC71EA0A6D1007D1AE3 /* NSString+Formatting.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSString+Formatting.m"; sourceTree = "<group>"; };
 		B3E7B5881CC2AC0600A0062D /* RNQuickblox.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RNQuickblox.h; sourceTree = "<group>"; };
 		B3E7B5891CC2AC0600A0062D /* RNQuickblox.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RNQuickblox.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -73,6 +76,8 @@
 				20190FCF1E96886800FF7EDB /* Frameworks */,
 				B3E7B5881CC2AC0600A0062D /* RNQuickblox.h */,
 				B3E7B5891CC2AC0600A0062D /* RNQuickblox.m */,
+				20EC9DC61EA0A6D1007D1AE3 /* NSString+Formatting.h */,
+				20EC9DC71EA0A6D1007D1AE3 /* NSString+Formatting.m */,
 				201910581E9701AD00FF7EDB /* NSError+Initializers.h */,
 				201910591E9701AD00FF7EDB /* NSError+Initializers.m */,
 				201910521E96FD2F00FF7EDB /* QBError+ErrorsFormatting.h */,
@@ -143,6 +148,7 @@
 				2019105A1E9701AD00FF7EDB /* NSError+Initializers.m in Sources */,
 				201910541E96FD2F00FF7EDB /* QBError+ErrorsFormatting.m in Sources */,
 				2019105D1E97082C00FF7EDB /* QBChatMessage+Formatting.m in Sources */,
+				20EC9DC81EA0A6D1007D1AE3 /* NSString+Formatting.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
