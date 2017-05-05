@@ -50,17 +50,22 @@ RCT_EXPORT_METHOD(
     // If I just use QBRequest login, then the delegates (didReceiveMessage, etc.) will not work
     [[QBChat instance] connectWithUser:user completion:^(NSError * _Nullable error) {
         if (error) {
-            reject(
-                   [NSString stringWithFormat: @"%ld", error.code],
-                   error.description,
-                   error
-            );
-            return;
+            BOOL canIgnore = error.code == -1000 && [error.userInfo[@"NSLocalizedRecoverySuggestion"] isEqualToString:@"You are already connected to chat."];
+            if (!canIgnore) {
+                reject(
+                       [NSString stringWithFormat: @"%ld", error.code],
+                       error.description,
+                       error
+                       );
+                return;
+            } else {
+                [_bridge.eventDispatcher sendDeviceEventWithName:QBChatConnected body: @{}];
+            }
         }
         // OK, I don't understand something... Why do we need to login twice?
         [QBRequest logInWithUserLogin:username password:password successBlock:^(QBResponse * _Nonnull response, QBUUser * _Nullable user) {
             resolve(@{
-                      @"id": user.ID ? [NSString stringWithFormat: @"%ld", user.ID] : @"",
+                      @"id": user.ID ? [NSString stringWithFormat: @"%lu", user.ID] : @"",
                       @"login": user.login ? user.login : @"",
                       @"password": user.password ? user.password : @""
                       });
@@ -75,7 +80,7 @@ RCT_EXPORT_METHOD(
                 NSInteger code = 99;
                 NSString *reason = @"Quickblox response does not have an error";
                 reject(
-                       [NSString stringWithFormat:@"%ld", code],
+                       [NSString stringWithFormat:@"%ld", (long)code],
                        reason,
                        [NSError errorWithCode:code reason:reason]
                        );
@@ -106,7 +111,7 @@ RCT_EXPORT_METHOD(
             NSInteger code = 99;
             NSString *reason = @"Quickblox response does not have an error";
             reject(
-                   [NSString stringWithFormat:@"%ld", code],
+                   [NSString stringWithFormat:@"%ld", (long)code],
                    reason,
                    [NSError errorWithCode:code reason:reason]
                    );
@@ -140,7 +145,7 @@ RCT_EXPORT_METHOD(
             NSInteger code = 99;
             NSString *reason = @"Quickblox response does not have an error";
             reject(
-                   [NSString stringWithFormat:@"%ld", code],
+                   [NSString stringWithFormat:@"%ld", (long)code],
                    reason,
                    [NSError errorWithCode:code reason:reason]
                    );
@@ -232,7 +237,7 @@ RCT_EXPORT_METHOD(
             NSInteger code = 99;
             NSString *reason = @"Quickblox response does not have an error";
             reject(
-                   [NSString stringWithFormat:@"%ld", code],
+                   [NSString stringWithFormat:@"%ld", (long)code],
                    reason,
                    [NSError errorWithCode:code reason:reason]
                    );
